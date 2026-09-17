@@ -1,0 +1,17 @@
+# Build
+backend/target/
+frontend/dist/
+frontend/node_modules/
+
+# Datenbankdateien von H2
+backend/data/
+
+# Entwicklungsumgebung
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# Lokale Einstellungen
+.env
+*.log
