@@ -4,6 +4,7 @@ import io.github.nicoloylife.projektboard.api.dto.ErrorResponse;
 import io.github.nicoloylife.projektboard.service.ConflictException;
 import io.github.nicoloylife.projektboard.service.ForbiddenException;
 import io.github.nicoloylife.projektboard.service.NotFoundException;
+import io.github.nicoloylife.projektboard.service.ValidationException;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +30,12 @@ public class ApiExceptionHandler {
                 .map(error -> new ErrorResponse.FieldError(error.getField(), error.getDefaultMessage()))
                 .toList();
         return ErrorResponse.validation(errors);
+    }
+
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    @ExceptionHandler(ValidationException.class)
+    public ErrorResponse handleBusinessValidation(ValidationException exception) {
+        return ErrorResponse.validation(List.of(new ErrorResponse.FieldError(exception.getField(), exception.getMessage())));
     }
 
     @ResponseStatus(HttpStatus.BAD_REQUEST)
