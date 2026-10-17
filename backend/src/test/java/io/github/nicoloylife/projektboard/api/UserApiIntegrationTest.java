@@ -83,6 +83,12 @@ class UserApiIntegrationTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("validation_failed"))
                 .andExpect(jsonPath("$.errors[0].field").value("password"));
+        mockMvc.perform(withCsrf(post("/api/users"), admin)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(newUserJson("langespasswort", "ä".repeat(40), "EMPLOYEE")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("validation_failed"))
+                .andExpect(jsonPath("$.errors[0].field").value("password"));
     }
 
     private void createUser(MockHttpSession admin, String username, String password, String role) throws Exception {

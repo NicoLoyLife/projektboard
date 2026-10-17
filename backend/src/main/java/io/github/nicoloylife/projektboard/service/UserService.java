@@ -14,7 +14,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class UserService {
 
-    /** BCrypt verarbeitet höchstens 72 Byte, ein längeres Passwort lehnt der Encoder mit einer Ausnahme ab. */
+    /**
+     * BCrypt verarbeitet höchstens 72 Byte, ein längeres Passwort lehnt der Encoder mit einer Ausnahme ab.
+     * Die Eingabe ist auf 72 Zeichen begrenzt, Umlaute und Emojis belegen aber mehrere Byte.
+     */
     private static final int MAX_PASSWORD_BYTES = 72;
 
     private final UserRepository users;
@@ -58,7 +61,7 @@ public class UserService {
     private String encodePassword(String password) {
         if (password.getBytes(StandardCharsets.UTF_8).length > MAX_PASSWORD_BYTES) {
             throw new ValidationException("password",
-                    "darf höchstens " + MAX_PASSWORD_BYTES + " Byte lang sein, Umlaute zählen doppelt");
+                    "darf höchstens " + MAX_PASSWORD_BYTES + " Byte lang sein, Umlaute und Emojis zählen mehrfach");
         }
         return passwordEncoder.encode(password);
     }
