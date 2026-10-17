@@ -39,22 +39,24 @@ class UserApiIntegrationTest {
     @Test
     void deactivationEndsExistingSession() throws Exception {
         MockHttpSession admin = login("admin");
-        MockHttpSession anna = login("anna");
-        long relaunchId = projectId(anna, "Kundenportal Relaunch");
+        MockHttpSession annaWrites = login("anna");
+        MockHttpSession annaReads = login("anna");
+        long relaunchId = projectId(annaWrites, "Kundenportal Relaunch");
 
         updateUser(admin, "anna", "EMPLOYEE", false);
 
-        mockMvc.perform(get("/api/projects").session(anna))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.message").value("Anmeldung erforderlich"));
-        mockMvc.perform(withCsrf(post("/api/projects/" + relaunchId + "/tasks"), anna)
+        mockMvc.perform(withCsrf(post("/api/projects/" + relaunchId + "/tasks"), annaWrites)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"title\":\"Aufgabe nach Deaktivierung\"}"))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("Anmeldung erforderlich"));
+        mockMvc.perform(get("/api/projects").session(annaReads))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("Anmeldung erforderlich"));
 
         updateUser(admin, "anna", "EMPLOYEE", true);
 
-        mockMvc.perform(get("/api/projects").session(anna))
+        mockMvc.perform(get("/api/projects").session(annaWrites))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -88,7 +90,9 @@ class UserApiIntegrationTest {
                         .content(newUserJson("langespasswort", "ä".repeat(40), "EMPLOYEE")))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("validation_failed"))
-                .andExpect(jsonPath("$.errors[0].field").value("password"));
+                .andExpect(jsonPath("$.errors[0].field").value("password"))
+                .andExpect(jsonPath("$.errors[0].message")
+                        .value("darf höchstens 72 Byte lang sein, Umlaute und Emojis zählen mehrfach"));
     }
 
     private void createUser(MockHttpSession admin, String username, String password, String role) throws Exception {

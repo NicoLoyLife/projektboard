@@ -55,7 +55,8 @@ public class ApiExceptionHandler {
 
     /**
      * Die Sitzung fehlt oder gilt nicht mehr, etwa nach einer Deaktivierung. Sie wird beendet, damit sie nach einer
-     * Reaktivierung nicht wieder auflebt. Die Antwort gleicht der ohne Sitzung aus der Sicherheitskonfiguration.
+     * Reaktivierung nicht wieder auflebt. Eine in der Zwischenzeit unbenutzte Sitzung endet erst durch Zeitablauf.
+     * Die Antwort gleicht der ohne Sitzung aus der Sicherheitskonfiguration.
      */
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
     @ExceptionHandler(AuthenticationCredentialsNotFoundException.class)
