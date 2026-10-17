@@ -100,6 +100,15 @@ class ProjectServiceTest {
     }
 
     @Test
+    void managerWhoLostManagerRoleMayNotChangeProject() {
+        leitung.setRole(Role.EMPLOYEE);
+        given(projects.findById(100L)).willReturn(Optional.of(relaunch));
+
+        assertThatThrownBy(() -> service.update(leitung, 100L, "Neu", null)).isInstanceOf(ForbiddenException.class);
+        assertThat(relaunch.getName()).isEqualTo("Kundenportal Relaunch");
+    }
+
+    @Test
     void archivedProjectRejectsChangesButAllowsReactivation() {
         relaunch.setStatus(ProjectStatus.ARCHIVED);
         given(projects.findById(100L)).willReturn(Optional.of(relaunch));

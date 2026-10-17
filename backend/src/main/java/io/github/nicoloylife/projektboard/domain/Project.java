@@ -124,7 +124,8 @@ public class Project {
                 || members.stream().anyMatch(member -> member.getId().equals(user.getId()));
     }
 
+    /** Ändern darf die Leitung nur mit der Rolle Projektleitung. Ohne sie bleibt das Projekt schreibgeschützt. */
     public boolean isManagedBy(User user) {
-        return manager.getId().equals(user.getId());
+        return user.getRole() == Role.PROJECT_MANAGER && manager.getId().equals(user.getId());
     }
 }
