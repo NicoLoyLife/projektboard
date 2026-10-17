@@ -51,6 +51,11 @@ class UserApiIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"title\":\"Aufgabe nach Deaktivierung\"}"))
                 .andExpect(status().isUnauthorized());
+
+        updateUser(admin, "anna", "EMPLOYEE", true);
+
+        mockMvc.perform(get("/api/projects").session(anna))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test

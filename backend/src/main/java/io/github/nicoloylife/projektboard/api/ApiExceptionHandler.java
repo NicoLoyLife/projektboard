@@ -5,6 +5,8 @@ import io.github.nicoloylife.projektboard.service.ConflictException;
 import io.github.nicoloylife.projektboard.service.ForbiddenException;
 import io.github.nicoloylife.projektboard.service.NotFoundException;
 import io.github.nicoloylife.projektboard.service.ValidationException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,10 +53,18 @@ public class ApiExceptionHandler {
         return ErrorResponse.of("unauthorized", "Benutzername oder Passwort ist falsch");
     }
 
-    /** Die Sitzung fehlt oder gilt nicht mehr. Die Antwort gleicht der ohne Sitzung aus der Sicherheitskonfiguration. */
+    /**
+     * Die Sitzung fehlt oder gilt nicht mehr, etwa nach einer Deaktivierung. Sie wird beendet, damit sie nach einer
+     * Reaktivierung nicht wieder auflebt. Die Antwort gleicht der ohne Sitzung aus der Sicherheitskonfiguration.
+     */
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
     @ExceptionHandler(AuthenticationCredentialsNotFoundException.class)
-    public ErrorResponse handleMissingAuthentication(AuthenticationCredentialsNotFoundException exception) {
+    public ErrorResponse handleMissingAuthentication(AuthenticationCredentialsNotFoundException exception,
+            HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+        if (session != null) {
+            session.invalidate();
+        }
         return ErrorResponse.of("unauthorized", "Anmeldung erforderlich");
     }
 
