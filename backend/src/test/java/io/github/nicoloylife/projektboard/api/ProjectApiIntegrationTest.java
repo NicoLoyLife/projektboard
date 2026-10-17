@@ -124,7 +124,8 @@ class ProjectApiIntegrationTest {
         mockMvc.perform(withCsrf(put("/api/projects/" + relaunchId), leitung)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"Umbenannt\"}"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("Nur die Projektleitung darf das Projekt ändern"));
     }
 
     @Test

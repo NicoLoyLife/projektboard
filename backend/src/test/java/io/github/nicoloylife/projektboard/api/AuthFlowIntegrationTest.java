@@ -43,7 +43,8 @@ class AuthFlowIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"username\":\"anna\",\"password\":\"falsch\"}"))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.error").value("unauthorized"));
+                .andExpect(jsonPath("$.error").value("unauthorized"))
+                .andExpect(jsonPath("$.message").value("Benutzername oder Passwort ist falsch"));
     }
 
     @Test
