@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import jakarta.servlet.http.Cookie;
+import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -124,6 +125,36 @@ class ProjectApiIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"Umbenannt\"}"))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void deactivatedMemberDoesNotBlockChangingMembers() throws Exception {
+        MockHttpSession admin = login("admin");
+        long annaId = userId(admin, "anna");
+        long chrisId = userId(admin, "chris");
+        updateUser(admin, "anna", "EMPLOYEE", false);
+        MockHttpSession leitung = login("leitung");
+        long relaunchId = projectId(leitung, "Kundenportal Relaunch");
+
+        String detail = mockMvc.perform(get("/api/projects/" + relaunchId).session(leitung))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String candidates = mockMvc.perform(get("/api/projects/" + relaunchId + "/member-candidates").session(leitung))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        List<Integer> members = JsonPath.read(detail, "$.members[*].id");
+        List<Integer> candidateIds = JsonPath.read(candidates, "$[*].id");
+        assertThat(members).contains((int) annaId);
+        assertThat(candidateIds).doesNotContain((int) annaId);
+
+        List<Integer> selected = new ArrayList<>(members);
+        selected.add((int) chrisId);
+        mockMvc.perform(withCsrf(put("/api/projects/" + relaunchId + "/members"), leitung)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"userIds\":" + selected + "}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.members[?(@.id == " + annaId + ")]").exists())
+                .andExpect(jsonPath("$.members[?(@.id == " + chrisId + ")]").exists());
     }
 
     private void updateUser(MockHttpSession admin, String username, String role, boolean active) throws Exception {

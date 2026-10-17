@@ -155,6 +155,17 @@ class ProjectServiceTest {
     }
 
     @Test
+    void setMembersKeepsDeactivatedMemberWhileAddingOthers() {
+        anna.setActive(false);
+        given(projects.findById(100L)).willReturn(Optional.of(relaunch));
+        given(users.findAllById(Set.of(3L, 5L))).willReturn(List.of(anna, chris));
+
+        Project updated = service.setMembers(leitung, 100L, List.of(3L, 5L));
+
+        assertThat(updated.getMembers()).containsExactlyInAnyOrder(anna, chris);
+    }
+
+    @Test
     void memberCandidatesExcludeManagerAndAdmin() {
         given(projects.findById(100L)).willReturn(Optional.of(relaunch));
         given(users.findByTenantIdAndActiveTrueAndRoleInOrderByDisplayNameAsc(1L, ProjectService.MEMBER_ROLES))

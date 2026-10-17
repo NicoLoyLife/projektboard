@@ -120,8 +120,11 @@ public class Project {
 
     /** Leitung und Mitglieder sind für das Projekt berechtigt. */
     public boolean isAccessibleBy(User user) {
-        return manager.getId().equals(user.getId())
-                || members.stream().anyMatch(member -> member.getId().equals(user.getId()));
+        return manager.getId().equals(user.getId()) || hasMember(user);
+    }
+
+    public boolean hasMember(User user) {
+        return members.stream().anyMatch(member -> member.getId().equals(user.getId()));
     }
 
     /** Ändern darf die Leitung nur mit der Rolle Projektleitung. Ohne sie bleibt das Projekt schreibgeschützt. */
