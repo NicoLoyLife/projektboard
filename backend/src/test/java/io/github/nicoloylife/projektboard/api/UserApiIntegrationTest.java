@@ -68,6 +68,18 @@ class UserApiIntegrationTest {
         assertThat(usernames(admin)).doesNotContain("neuadmin");
     }
 
+    @Test
+    void passwordOver72BytesIsRejectedAsFieldError() throws Exception {
+        MockHttpSession admin = login("admin");
+
+        mockMvc.perform(withCsrf(post("/api/users"), admin)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(newUserJson("langespasswort", "a".repeat(80), "EMPLOYEE")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("validation_failed"))
+                .andExpect(jsonPath("$.errors[0].field").value("password"));
+    }
+
     private void createUser(MockHttpSession admin, String username, String password, String role) throws Exception {
         mockMvc.perform(withCsrf(post("/api/users"), admin)
                         .contentType(MediaType.APPLICATION_JSON)
