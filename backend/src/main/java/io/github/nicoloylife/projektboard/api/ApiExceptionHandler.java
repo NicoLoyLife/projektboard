@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -48,6 +49,13 @@ public class ApiExceptionHandler {
     @ExceptionHandler(AuthenticationException.class)
     public ErrorResponse handleAuthentication(AuthenticationException exception) {
         return ErrorResponse.of("unauthorized", "Benutzername oder Passwort ist falsch");
+    }
+
+    /** Die Sitzung fehlt oder gilt nicht mehr. Die Antwort gleicht der ohne Sitzung aus der Sicherheitskonfiguration. */
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    @ExceptionHandler(AuthenticationCredentialsNotFoundException.class)
+    public ErrorResponse handleMissingAuthentication(AuthenticationCredentialsNotFoundException exception) {
+        return ErrorResponse.of("unauthorized", "Anmeldung erforderlich");
     }
 
     @ResponseStatus(HttpStatus.FORBIDDEN)
