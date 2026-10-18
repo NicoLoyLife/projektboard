@@ -129,6 +129,7 @@ export const theme = createTheme({
           borderBottom: `1px solid ${tone.line}`,
           '& .MuiTypography-h6': { fontWeight: 700, letterSpacing: '-0.01em' },
           '& .MuiTypography-body2': { color: tone.inkMuted },
+          '& .MuiButton-root': { whiteSpace: 'nowrap', flexShrink: 0 },
           // Abmelden ist die einzige Schaltfläche, die Navigation besteht aus Links
           '& button.MuiButton-root': { fontWeight: 500, color: tone.inkMuted, '&:hover': { color: tone.ink } },
         },
@@ -136,9 +137,19 @@ export const theme = createTheme({
     },
     MuiToolbar: {
       styleOverrides: {
-        // Die Leiste fluchtet mit dem Seiteninhalt
-        root: ({ theme }) => ({ width: '100%', maxWidth: theme.breakpoints.values.lg, marginInline: 'auto' }),
+        root: ({ theme }) => ({
+          // Die Leiste fluchtet mit dem Seiteninhalt
+          width: '100%',
+          maxWidth: theme.breakpoints.values.lg,
+          marginInline: 'auto',
+          // Auf schmalen Bildschirmen bricht sie um, damit Abmelden erreichbar bleibt
+          [theme.breakpoints.down('sm')]: { flexWrap: 'wrap', paddingTop: 8, paddingBottom: 8 },
+        }),
       },
+    },
+    MuiStack: {
+      // Abstand über gap, damit umbrechende Zeilen links bündig bleiben
+      defaultProps: { useFlexGap: true },
     },
     MuiButtonBase: {
       defaultProps: { disableRipple: true },
@@ -196,10 +207,44 @@ export const theme = createTheme({
         colorPrimary: { backgroundColor: tone.accentTrack },
       },
     },
+    MuiTableContainer: {
+      styleOverrides: {
+        // Auf schmalen Bildschirmen zeigt ein Schatten am rechten Rand, dass die Tabelle weiterläuft
+        root: ({ theme }) => ({
+          [theme.breakpoints.down('sm')]: {
+            backgroundImage: `linear-gradient(to left, #ffffff 16px, ${alpha('#ffffff', 0)}), `
+              + `radial-gradient(farthest-side at 100% 50%, ${alpha(tone.ink, 0.18)}, ${alpha(tone.ink, 0)})`,
+            backgroundPosition: 'right center, right center',
+            backgroundSize: '40px 100%, 14px 100%',
+            backgroundRepeat: 'no-repeat',
+            backgroundAttachment: 'local, scroll',
+          },
+        }),
+      },
+    },
     MuiTableCell: {
       styleOverrides: {
-        root: { padding: '10px 16px', borderBottom: `1px solid ${tone.rule}` },
-        head: {
+        root: ({ theme }) => ({
+          padding: '10px 16px',
+          borderBottom: `1px solid ${tone.rule}`,
+          [theme.breakpoints.down('sm')]: {
+            padding: '8px 10px',
+            // Die erste Spalte bleibt beim seitlichen Wischen stehen
+            '&:first-of-type': {
+              position: 'sticky',
+              left: 0,
+              zIndex: 1,
+              backgroundColor: '#ffffff',
+              boxShadow: `inset -1px 0 0 ${tone.line}`,
+            },
+            // Die Zeile für leere Listen überspannt alle Spalten und bleibt normal
+            '&[colspan]': { position: 'static', boxShadow: 'none' },
+            '.MuiTableRow-hover:hover > &:first-of-type': {
+              backgroundImage: `linear-gradient(${theme.palette.action.hover}, ${theme.palette.action.hover})`,
+            },
+          },
+        }),
+        head: ({ theme }) => ({
           backgroundColor: tone.layer,
           color: tone.inkMuted,
           fontSize: '0.8125rem',
@@ -209,7 +254,10 @@ export const theme = createTheme({
           paddingTop: 9,
           paddingBottom: 9,
           borderBottomColor: tone.line,
-        },
+          [theme.breakpoints.down('sm')]: {
+            '&:first-of-type': { backgroundColor: tone.layer, zIndex: 2 },
+          },
+        }),
         body: {
           color: tone.ink,
           '& .MuiInputBase-sizeSmall .MuiSelect-select': { paddingTop: 5, paddingBottom: 5 },
