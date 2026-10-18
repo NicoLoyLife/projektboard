@@ -100,6 +100,15 @@ class ProjectServiceTest {
     }
 
     @Test
+    void managerWhoLostManagerRoleMayNotChangeProject() {
+        leitung.setRole(Role.EMPLOYEE);
+        given(projects.findById(100L)).willReturn(Optional.of(relaunch));
+
+        assertThatThrownBy(() -> service.update(leitung, 100L, "Neu", null)).isInstanceOf(ForbiddenException.class);
+        assertThat(relaunch.getName()).isEqualTo("Kundenportal Relaunch");
+    }
+
+    @Test
     void archivedProjectRejectsChangesButAllowsReactivation() {
         relaunch.setStatus(ProjectStatus.ARCHIVED);
         given(projects.findById(100L)).willReturn(Optional.of(relaunch));
@@ -143,6 +152,17 @@ class ProjectServiceTest {
                 .isInstanceOf(ValidationException.class)
                 .extracting("field").isEqualTo("userIds");
         assertThat(relaunch.getMembers()).containsExactly(anna);
+    }
+
+    @Test
+    void setMembersKeepsDeactivatedMemberWhileAddingOthers() {
+        anna.setActive(false);
+        given(projects.findById(100L)).willReturn(Optional.of(relaunch));
+        given(users.findAllById(Set.of(3L, 5L))).willReturn(List.of(anna, chris));
+
+        Project updated = service.setMembers(leitung, 100L, List.of(3L, 5L));
+
+        assertThat(updated.getMembers()).containsExactlyInAnyOrder(anna, chris);
     }
 
     @Test

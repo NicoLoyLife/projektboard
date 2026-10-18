@@ -3,6 +3,7 @@ package io.github.nicoloylife.projektboard.service;
 import io.github.nicoloylife.projektboard.domain.Role;
 import io.github.nicoloylife.projektboard.domain.User;
 import io.github.nicoloylife.projektboard.repository.UserRepository;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -12,6 +13,12 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional
 public class UserService {
+
+    /**
+     * BCrypt verarbeitet höchstens 72 Byte, ein längeres Passwort lehnt der Encoder mit einer Ausnahme ab.
+     * Die Eingabe ist auf 72 Zeichen begrenzt, Umlaute und Emojis belegen aber mehrere Byte.
+     */
+    private static final int MAX_PASSWORD_BYTES = 72;
 
     private final UserRepository users;
     private final PasswordEncoder passwordEncoder;
@@ -30,7 +37,7 @@ public class UserService {
         if (users.findByUsername(username).isPresent()) {
             throw new ValidationException("username", "Benutzername ist bereits vergeben");
         }
-        User user = new User(username, passwordEncoder.encode(password), displayName, role, admin.getTenant());
+        User user = new User(username, encodePassword(password), displayName, role, admin.getTenant());
         return users.save(user);
     }
 
@@ -46,8 +53,16 @@ public class UserService {
         user.setRole(role);
         user.setActive(active);
         if (newPassword != null && !newPassword.isBlank()) {
-            user.setPasswordHash(passwordEncoder.encode(newPassword));
+            user.setPasswordHash(encodePassword(newPassword));
         }
         return user;
+    }
+
+    private String encodePassword(String password) {
+        if (password.getBytes(StandardCharsets.UTF_8).length > MAX_PASSWORD_BYTES) {
+            throw new ValidationException("password",
+                    "darf höchstens " + MAX_PASSWORD_BYTES + " Byte lang sein, Umlaute und Emojis zählen mehrfach");
+        }
+        return passwordEncoder.encode(password);
     }
 }

@@ -92,6 +92,30 @@ class UserServiceTest {
     }
 
     @Test
+    void createRejectsPasswordOver72BytesAsFieldError() {
+        given(users.findByUsername("neu")).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.createUser(admin, "neu", "a".repeat(73), "Neue Person", Role.EMPLOYEE))
+                .isInstanceOf(ValidationException.class)
+                .extracting("field").isEqualTo("password");
+        verify(users, never()).save(any());
+    }
+
+    @Test
+    void updateCountsPasswordLengthInBytes() {
+        User anna = userWithId(20L, "anna", Role.EMPLOYEE);
+        given(users.findById(20L)).willReturn(Optional.of(anna));
+        given(passwordEncoder.encode("ä".repeat(36))).willReturn("neuer-hash");
+
+        service.updateUser(admin, 20L, "Anna Berger", Role.EMPLOYEE, true, "ä".repeat(36));
+
+        assertThat(anna.getPasswordHash()).isEqualTo("neuer-hash");
+        assertThatThrownBy(() -> service.updateUser(admin, 20L, "Anna Berger", Role.EMPLOYEE, true, "ä".repeat(37)))
+                .isInstanceOf(ValidationException.class)
+                .extracting("field").isEqualTo("password");
+    }
+
+    @Test
     void adminCannotDeactivateOwnAccount() {
         given(users.findById(10L)).willReturn(Optional.of(admin));
 

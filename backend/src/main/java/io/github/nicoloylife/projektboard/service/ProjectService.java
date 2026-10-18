@@ -90,12 +90,16 @@ public class ProjectService {
         return project;
     }
 
+    /**
+     * Setzt die Mitglieder neu. Hinzukommen können nur zuordenbare Benutzer. Bisherige Mitglieder dürfen bleiben,
+     * auch wenn sie inzwischen deaktiviert sind, weil Zuordnungen erhalten bleiben.
+     */
     public Project setMembers(User current, Long projectId, List<Long> userIds) {
         Project project = requireManagedAndActive(current, projectId);
         Set<Long> wanted = new HashSet<>(userIds);
         wanted.remove(project.getManager().getId());
         List<User> resolved = users.findAllById(wanted).stream()
-                .filter(user -> isAssignable(project, user))
+                .filter(user -> project.hasMember(user) || isAssignable(project, user))
                 .toList();
         if (resolved.size() != wanted.size()) {
             throw new ValidationException("userIds", "Mindestens ein Benutzer ist nicht zuordenbar");

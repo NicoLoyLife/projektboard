@@ -5,12 +5,15 @@ import io.github.nicoloylife.projektboard.service.ConflictException;
 import io.github.nicoloylife.projektboard.service.ForbiddenException;
 import io.github.nicoloylife.projektboard.service.NotFoundException;
 import io.github.nicoloylife.projektboard.service.ValidationException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -48,6 +51,22 @@ public class ApiExceptionHandler {
     @ExceptionHandler(AuthenticationException.class)
     public ErrorResponse handleAuthentication(AuthenticationException exception) {
         return ErrorResponse.of("unauthorized", "Benutzername oder Passwort ist falsch");
+    }
+
+    /**
+     * Die Sitzung fehlt oder gilt nicht mehr, etwa nach einer Deaktivierung. Sie wird beendet, damit sie nach einer
+     * Reaktivierung nicht wieder auflebt. Eine in der Zwischenzeit unbenutzte Sitzung endet erst durch Zeitablauf.
+     * Die Antwort gleicht der ohne Sitzung aus der Sicherheitskonfiguration.
+     */
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    @ExceptionHandler(AuthenticationCredentialsNotFoundException.class)
+    public ErrorResponse handleMissingAuthentication(AuthenticationCredentialsNotFoundException exception,
+            HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+        if (session != null) {
+            session.invalidate();
+        }
+        return ErrorResponse.of("unauthorized", "Anmeldung erforderlich");
     }
 
     @ResponseStatus(HttpStatus.FORBIDDEN)

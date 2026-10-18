@@ -12,7 +12,7 @@ public record CreateUserRequest(
         @Pattern(regexp = "[a-z0-9._]+", message = "nur Kleinbuchstaben, Ziffern, Punkt und Unterstrich")
         String username,
         @NotBlank(message = "darf nicht leer sein")
-        @Size(min = 8, max = 100, message = "muss mindestens 8 Zeichen lang sein")
+        @Size(min = 8, max = 72, message = "muss 8 bis 72 Zeichen lang sein")
         String password,
         @NotBlank(message = "darf nicht leer sein")
         @Size(max = 100, message = "darf höchstens 100 Zeichen lang sein")

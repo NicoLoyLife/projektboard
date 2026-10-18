@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -110,6 +111,25 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.errors[?(@.field == 'username')]").exists())
                 .andExpect(jsonPath("$.errors[?(@.field == 'password')]").exists())
                 .andExpect(jsonPath("$.errors[?(@.field == 'displayName')]").exists());
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    void passwordLongerThan72CharactersIsRejectedWithFieldError() throws Exception {
+        String password = "a".repeat(73);
+
+        mockMvc.perform(withCsrf(post("/api/users"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"neu\",\"password\":\"" + password
+                                + "\",\"displayName\":\"Neue Person\",\"role\":\"EMPLOYEE\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors[?(@.field == 'password')].message").value("muss 8 bis 72 Zeichen lang sein"));
+        mockMvc.perform(withCsrf(put("/api/users/2"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"displayName\":\"Anna Berger\",\"role\":\"EMPLOYEE\",\"active\":true,\"password\":\""
+                                + password + "\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors[?(@.field == 'password')].message").value("muss 8 bis 72 Zeichen lang sein"));
     }
 
     @Test
