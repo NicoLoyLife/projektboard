@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -147,6 +148,30 @@ class ProjectControllerTest {
                         .content("{\"status\":\"ARCHIVED\"}"))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.message").value("Nur die Projektleitung darf das Projekt ändern"));
+    }
+
+    @Test
+    @WithMockUser(roles = "EMPLOYEE")
+    void pathVariableOfWrongTypeIsBadRequest() throws Exception {
+        mockMvc.perform(get("/api/projects/abc"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("bad_request"));
+    }
+
+    @Test
+    @WithMockUser(roles = "EMPLOYEE")
+    void unknownStatusFilterIsBadRequest() throws Exception {
+        mockMvc.perform(get("/api/projects").param("status", "FOO"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("bad_request"));
+    }
+
+    @Test
+    @WithMockUser(roles = "PROJECT_MANAGER")
+    void unsupportedMethodIsMethodNotAllowed() throws Exception {
+        mockMvc.perform(withCsrf(delete("/api/projects/100")))
+                .andExpect(status().isMethodNotAllowed())
+                .andExpect(jsonPath("$.error").value("method_not_allowed"));
     }
 
     private MockHttpServletRequestBuilder withCsrf(MockHttpServletRequestBuilder request) throws Exception {

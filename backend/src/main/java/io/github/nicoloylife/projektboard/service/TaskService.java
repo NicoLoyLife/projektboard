@@ -19,6 +19,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class TaskService {
 
+    private static final String TASK_NOT_FOUND = "Aufgabe nicht gefunden";
+    private static final String NOT_ASSIGNABLE = "Nur Leitung und aktive Mitglieder des Projekts sind zuordenbar";
+
     private final TaskRepository tasks;
     private final UserRepository users;
     private final ProjectService projectService;
@@ -41,7 +44,9 @@ public class TaskService {
         Task task = requireEditableTask(current, taskId);
         task.setTitle(title);
         task.setDescription(description);
-        task.setAssignee(resolveAssignee(task.getProject(), assigneeId));
+        if (!keepsAssignee(task, assigneeId)) {
+            task.setAssignee(resolveAssignee(task.getProject(), assigneeId));
+        }
         task.setDueDate(dueDate);
         return task;
     }
@@ -52,9 +57,19 @@ public class TaskService {
         return task;
     }
 
+    /** Eine unveränderte Zuweisung bleibt bestehen, auch wenn die Person inzwischen deaktiviert ist. */
+    private static boolean keepsAssignee(Task task, Long assigneeId) {
+        return task.getAssignee() != null && task.getAssignee().getId().equals(assigneeId);
+    }
+
+    /** Ob das Projekt nur unsichtbar oder die Aufgabe unbekannt ist, verrät die Antwort nicht. */
     private Task requireEditableTask(User current, Long taskId) {
-        Task task = tasks.findById(taskId).orElseThrow(() -> new NotFoundException("Aufgabe nicht gefunden"));
-        requireEditableProject(current, task.getProject().getId());
+        Task task = tasks.findById(taskId).orElseThrow(() -> new NotFoundException(TASK_NOT_FOUND));
+        try {
+            requireEditableProject(current, task.getProject().getId());
+        } catch (NotFoundException hiddenProject) {
+            throw new NotFoundException(TASK_NOT_FOUND);
+        }
         return task;
     }
 
@@ -74,9 +89,9 @@ public class TaskService {
             return null;
         }
         User assignee = users.findById(assigneeId)
-                .orElseThrow(() -> new ValidationException("assigneeId", "Benutzer nicht gefunden"));
+                .orElseThrow(() -> new ValidationException("assigneeId", NOT_ASSIGNABLE));
         if (!assignee.isActive() || !project.isAccessibleBy(assignee)) {
-            throw new ValidationException("assigneeId", "Nur Leitung und aktive Mitglieder des Projekts sind zuordenbar");
+            throw new ValidationException("assigneeId", NOT_ASSIGNABLE);
         }
         return assignee;
     }

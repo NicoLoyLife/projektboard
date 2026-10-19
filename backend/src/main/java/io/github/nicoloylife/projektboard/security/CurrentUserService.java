@@ -13,7 +13,8 @@ import org.springframework.stereotype.Service;
  * Liefert den angemeldeten Benutzer als Entität aus der Datenbank. Die Sitzung hält die Rolle aus der
  * Anmeldung. Ist das Konto inzwischen deaktiviert oder hat es eine andere Rolle, gilt die Sitzung nicht
  * mehr. Die Anfrage endet dann mit 401, der ApiExceptionHandler beendet die Sitzung und das Frontend meldet ab.
- * Endpunkte mit @PreAuthorize prüfen vorher die Rolle aus der Sitzung und antworten bei fehlender Rolle mit 403.
+ * Endpunkte mit @PreAuthorize prüfen vorher die Rolle aus der Sitzung. Stammt ein 403 von einer Sitzung, deren
+ * Rolle sich geändert hat, macht der ApiExceptionHandler daraus ebenfalls ein 401 und beendet die Sitzung.
  */
 @Service
 public class CurrentUserService {

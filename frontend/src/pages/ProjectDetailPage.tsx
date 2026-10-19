@@ -82,6 +82,7 @@ export function ProjectDetailPage() {
       return
     }
     try {
+      setError(null)
       setProject(await changeProjectStatus(projectId, project.status === 'ACTIVE' ? 'ARCHIVED' : 'ACTIVE'))
     } catch (caught) {
       setError(caught)
@@ -199,6 +200,7 @@ export function ProjectDetailPage() {
       {projectDialog && (
         <ProjectDialog project={project} onClose={() => setProjectDialog(false)}
           onSave={async (name, description) => {
+            setError(null)
             setProject(await updateProject(projectId, name, description))
           }} />
       )}
@@ -206,6 +208,7 @@ export function ProjectDetailPage() {
         <MembersDialog candidates={candidates} selected={project.members}
           onClose={() => setMembersDialog(false)}
           onSave={async (userIds) => {
+            setError(null)
             setProject(await setProjectMembers(projectId, userIds))
           }} />
       )}

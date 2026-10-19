@@ -88,6 +88,38 @@ class AuthFlowIntegrationTest {
                 .andExpect(status().isUnauthorized());
     }
 
+    @Test
+    void unknownPathWithoutLoginIsNotFound() throws Exception {
+        mockMvc.perform(get("/favicon.ico"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("not_found"));
+    }
+
+    @Test
+    void loginWithWrongContentTypeIsUnsupportedMediaType() throws Exception {
+        Cookie csrf = csrfCookie(null);
+        mockMvc.perform(withCsrf(post("/api/auth/login"), csrf)
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("anna:demo1234"))
+                .andExpect(status().isUnsupportedMediaType())
+                .andExpect(jsonPath("$.error").value("unsupported_media_type"));
+    }
+
+    @Test
+    void loginChangesSessionId() throws Exception {
+        MockHttpSession before = new MockHttpSession();
+        Cookie csrf = csrfCookie(before);
+        String idBefore = before.getId();
+
+        MvcResult result = mockMvc.perform(withCsrf(post("/api/auth/login"), csrf).session(before)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"anna\",\"password\":\"demo1234\"}"))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        assertThat(result.getRequest().getSession(false).getId()).isNotEqualTo(idBefore);
+    }
+
     private MockHttpSession login(String username, String password) throws Exception {
         Cookie csrf = csrfCookie(null);
         MvcResult result = mockMvc.perform(withCsrf(post("/api/auth/login"), csrf)

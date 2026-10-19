@@ -2,6 +2,7 @@ package io.github.nicoloylife.projektboard.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
@@ -131,6 +132,69 @@ class TaskServiceTest {
 
         assertThatThrownBy(() -> service.changeStatus(anna, 999L, TaskStatus.DONE))
                 .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void updateKeepsDeactivatedAssigneeWhenUnchanged() {
+        anna.setActive(false);
+        Task task = new Task("Alt", null, relaunch, anna, null);
+        ReflectionTestUtils.setField(task, "id", 500L);
+        given(tasks.findById(500L)).willReturn(Optional.of(task));
+        given(projectService.getVisible(leitung, 100L)).willReturn(relaunch);
+
+        Task updated = service.update(leitung, 500L, "Neu", null, 3L, null);
+
+        assertThat(updated.getAssignee()).isSameAs(anna);
+        verify(users, never()).findById(any());
+    }
+
+    @Test
+    void unknownAssigneeGetsSameMessageAsOutsider() {
+        given(projectService.getVisible(anna, 100L)).willReturn(relaunch);
+        given(users.findById(999L)).willReturn(Optional.empty());
+        given(users.findById(5L)).willReturn(Optional.of(chris));
+
+        Throwable unknown = catchThrowable(() -> service.create(anna, 100L, "Aufgabe", null, 999L, null));
+        Throwable outsider = catchThrowable(() -> service.create(anna, 100L, "Aufgabe", null, 5L, null));
+
+        assertThat(unknown).isInstanceOf(ValidationException.class).hasMessage(outsider.getMessage());
+    }
+
+    @Test
+    void statusChangeRejectsArchivedProject() {
+        relaunch.setStatus(ProjectStatus.ARCHIVED);
+        Task task = new Task("Aufgabe", null, relaunch, null, null);
+        ReflectionTestUtils.setField(task, "id", 500L);
+        given(tasks.findById(500L)).willReturn(Optional.of(task));
+        given(projectService.getVisible(anna, 100L)).willReturn(relaunch);
+
+        assertThatThrownBy(() -> service.changeStatus(anna, 500L, TaskStatus.DONE))
+                .isInstanceOf(ConflictException.class);
+        assertThat(task.getStatus()).isEqualTo(TaskStatus.OPEN);
+    }
+
+    @Test
+    void updateRejectsAdmin() {
+        Task task = new Task("Aufgabe", null, relaunch, null, null);
+        ReflectionTestUtils.setField(task, "id", 500L);
+        given(tasks.findById(500L)).willReturn(Optional.of(task));
+        given(projectService.getVisible(admin, 100L)).willReturn(relaunch);
+
+        assertThatThrownBy(() -> service.update(admin, 500L, "Neu", null, null, null))
+                .isInstanceOf(ForbiddenException.class);
+        assertThat(task.getTitle()).isEqualTo("Aufgabe");
+    }
+
+    @Test
+    void taskOfInvisibleProjectIsNotFoundWithoutRevealingTheProject() {
+        Task task = new Task("Aufgabe", null, relaunch, null, null);
+        ReflectionTestUtils.setField(task, "id", 500L);
+        given(tasks.findById(500L)).willReturn(Optional.of(task));
+        given(projectService.getVisible(chris, 100L)).willThrow(new NotFoundException("Projekt nicht gefunden"));
+
+        assertThatThrownBy(() -> service.changeStatus(chris, 500L, TaskStatus.DONE))
+                .isInstanceOf(NotFoundException.class)
+                .hasMessage("Aufgabe nicht gefunden");
     }
 
     private static User user(long id, String username, Role role, Tenant tenant) {

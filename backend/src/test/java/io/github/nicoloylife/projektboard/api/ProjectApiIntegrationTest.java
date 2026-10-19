@@ -158,6 +158,113 @@ class ProjectApiIntegrationTest {
                 .andExpect(jsonPath("$.members[?(@.id == " + chrisId + ")]").exists());
     }
 
+    @Test
+    void taskEndpointsAreNotFoundForNonMembers() throws Exception {
+        MockHttpSession anna = login("anna");
+        long migrationId = projectId(anna, "Interne Migration");
+        long taskId = taskId(anna, migrationId, "Server inventarisieren");
+
+        for (MockHttpSession outsider : List.of(login("ben"), login("chris"))) {
+            mockMvc.perform(withCsrf(patch("/api/tasks/" + taskId + "/status"), outsider)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"status\":\"DONE\"}"))
+                    .andExpect(status().isNotFound());
+            mockMvc.perform(withCsrf(put("/api/tasks/" + taskId), outsider)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"title\":\"Gekapert\"}"))
+                    .andExpect(status().isNotFound());
+        }
+        mockMvc.perform(get("/api/projects/" + migrationId).session(anna))
+                .andExpect(jsonPath("$.tasks[?(@.title == 'Server inventarisieren')]").exists())
+                .andExpect(jsonPath("$.tasks[?(@.title == 'Gekapert')]").doesNotExist());
+    }
+
+    @Test
+    void archivedProjectBlocksTaskEndpointsById() throws Exception {
+        MockHttpSession ben = login("ben");
+        long taskId = taskId(ben, projectId(ben, "Website 2025"), "Inhalte übernehmen");
+
+        for (MockHttpSession session : List.of(ben, login("leitung"))) {
+            mockMvc.perform(withCsrf(patch("/api/tasks/" + taskId + "/status"), session)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"status\":\"OPEN\"}"))
+                    .andExpect(status().isConflict());
+            mockMvc.perform(withCsrf(put("/api/tasks/" + taskId), session)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"title\":\"Nachtrag\"}"))
+                    .andExpect(status().isConflict());
+        }
+    }
+
+    @Test
+    void adminCannotWriteThroughAnyEndpoint() throws Exception {
+        MockHttpSession admin = login("admin");
+        long relaunchId = projectId(admin, "Kundenportal Relaunch");
+        long taskId = taskId(admin, relaunchId, "Anmeldeseite umsetzen");
+        long annaId = userId(admin, "anna");
+
+        expectForbidden(post("/api/projects"), admin, "{\"name\":\"Admin-Projekt\"}");
+        expectForbidden(put("/api/projects/" + relaunchId), admin, "{\"name\":\"Umbenannt\"}");
+        expectForbidden(patch("/api/projects/" + relaunchId + "/status"), admin, "{\"status\":\"ARCHIVED\"}");
+        expectForbidden(put("/api/projects/" + relaunchId + "/members"), admin, "{\"userIds\":[" + annaId + "]}");
+        expectForbidden(post("/api/projects/" + relaunchId + "/tasks"), admin, "{\"title\":\"Aufgabe\"}");
+        expectForbidden(put("/api/tasks/" + taskId), admin, "{\"title\":\"Aufgabe\"}");
+        expectForbidden(patch("/api/tasks/" + taskId + "/status"), admin, "{\"status\":\"OPEN\"}");
+        mockMvc.perform(get("/api/projects/" + relaunchId + "/member-candidates").session(admin))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void foreignTaskAnswersLikeUnknownTask() throws Exception {
+        MockHttpSession anna = login("anna");
+        long taskId = taskId(anna, projectId(anna, "Kundenportal Relaunch"), "Anmeldeseite umsetzen");
+        MockHttpSession chris = login("chris");
+
+        String foreign = mockMvc.perform(withCsrf(patch("/api/tasks/" + taskId + "/status"), chris)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"DONE\"}"))
+                .andExpect(status().isNotFound())
+                .andReturn().getResponse().getContentAsString();
+        String unknown = mockMvc.perform(withCsrf(patch("/api/tasks/999999/status"), chris)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"DONE\"}"))
+                .andExpect(status().isNotFound())
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(foreign).isEqualTo(unknown);
+    }
+
+    @Test
+    void editingTaskKeepsDeactivatedAssignee() throws Exception {
+        MockHttpSession admin = login("admin");
+        long annaId = userId(admin, "anna");
+        MockHttpSession leitung = login("leitung");
+        long taskId = taskId(leitung, projectId(leitung, "Kundenportal Relaunch"), "Anmeldeseite umsetzen");
+        updateUser(admin, "anna", "EMPLOYEE", false);
+
+        mockMvc.perform(withCsrf(put("/api/tasks/" + taskId), leitung)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"Anmeldeseite umsetzen (korrigiert)\",\"assigneeId\":" + annaId + "}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("Anmeldeseite umsetzen (korrigiert)"))
+                .andExpect(jsonPath("$.assignee.id").value((int) annaId));
+    }
+
+    private void expectForbidden(MockHttpServletRequestBuilder request, MockHttpSession session, String body)
+            throws Exception {
+        mockMvc.perform(withCsrf(request, session).contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isForbidden());
+    }
+
+    private long taskId(MockHttpSession session, long projectId, String title) throws Exception {
+        String body = mockMvc.perform(get("/api/projects/" + projectId).session(session))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        List<Integer> ids = JsonPath.read(body, "$.tasks[?(@.title == '" + title + "')].id");
+        assertThat(ids).hasSize(1);
+        return ids.get(0);
+    }
+
     private void updateUser(MockHttpSession admin, String username, String role, boolean active) throws Exception {
         mockMvc.perform(withCsrf(put("/api/users/" + userId(admin, username)), admin)
                         .contentType(MediaType.APPLICATION_JSON)

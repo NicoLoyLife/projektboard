@@ -95,6 +95,42 @@ class UserApiIntegrationTest {
                         .value("darf höchstens 72 Byte lang sein, Umlaute und Emojis zählen mehrfach"));
     }
 
+    @Test
+    void deactivatedAccountGetsSameLoginAnswerAsUnknownUser() throws Exception {
+        updateUser(login("admin"), "chris", "EMPLOYEE", false);
+
+        String deactivated = failedLogin("chris", "demo1234");
+        String unknown = failedLogin("gibtesnicht", "demo1234");
+        String wrongPassword = failedLogin("anna", "falsch");
+
+        assertThat(deactivated).isEqualTo(unknown).isEqualTo(wrongPassword);
+    }
+
+    @Test
+    void promotionEndsExistingSessionOnRoleGuardedEndpoint() throws Exception {
+        MockHttpSession admin = login("admin");
+        MockHttpSession anna = login("anna");
+        updateUser(admin, "anna", "PROJECT_MANAGER", true);
+
+        mockMvc.perform(withCsrf(post("/api/projects"), anna)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Nach Beförderung\"}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("Anmeldung erforderlich"));
+        mockMvc.perform(get("/api/auth/me").session(anna))
+                .andExpect(status().isUnauthorized());
+    }
+
+    private String failedLogin(String username, String password) throws Exception {
+        Cookie csrf = csrfCookie(null);
+        return mockMvc.perform(post("/api/auth/login")
+                        .cookie(csrf).header("X-XSRF-TOKEN", csrf.getValue())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"" + username + "\",\"password\":\"" + password + "\"}"))
+                .andExpect(status().isUnauthorized())
+                .andReturn().getResponse().getContentAsString();
+    }
+
     private void createUser(MockHttpSession admin, String username, String password, String role) throws Exception {
         mockMvc.perform(withCsrf(post("/api/users"), admin)
                         .contentType(MediaType.APPLICATION_JSON)
