@@ -149,6 +149,17 @@ class UserServiceTest {
         assertThat(tenantId.getValue()).isEqualTo(1L);
     }
 
+    @Test
+    void updateRejectsWhitespaceOnlyPassword() {
+        User anna = userWithId(20L, "anna", Role.EMPLOYEE);
+        given(users.findById(20L)).willReturn(Optional.of(anna));
+
+        assertThatThrownBy(() -> service.updateUser(admin, 20L, "Anna Berger", Role.EMPLOYEE, true, "        "))
+                .isInstanceOf(ValidationException.class)
+                .extracting("field").isEqualTo("password");
+        verify(passwordEncoder, never()).encode(any());
+    }
+
     private User userWithId(long id, String username, Role role) {
         User user = new User(username, "hash", "Anna Berger", role, tenant);
         ReflectionTestUtils.setField(user, "id", id);

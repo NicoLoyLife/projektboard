@@ -52,7 +52,10 @@ public class UserService {
         user.setDisplayName(displayName);
         user.setRole(role);
         user.setActive(active);
-        if (newPassword != null && !newPassword.isBlank()) {
+        if (newPassword != null) {
+            if (newPassword.isBlank()) {
+                throw new ValidationException("password", "darf nicht leer sein");
+            }
             user.setPasswordHash(encodePassword(newPassword));
         }
         return user;
