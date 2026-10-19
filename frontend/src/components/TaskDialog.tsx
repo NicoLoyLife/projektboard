@@ -44,6 +44,11 @@ export function TaskDialog({ task, assignableUsers, onClose, onSave }: Props) {
   const titleError = error instanceof ApiError ? error.fieldMessage('title') : undefined
   const assigneeError = error instanceof ApiError ? error.fieldMessage('assigneeId') : undefined
 
+  // Eine bestehende Zuweisung bleibt wählbar, auch wenn die Person nicht mehr zum Projekt gehört.
+  const current = task?.assignee ?? null
+  const keptAssignee = current && !assignableUsers.some((user) => user.id === current.id) ? current : null
+  const options = keptAssignee ? [...assignableUsers, keptAssignee] : assignableUsers
+
   return (
     <Dialog open onClose={onClose} fullWidth maxWidth="sm">
       <form onSubmit={handleSubmit}>
@@ -60,8 +65,10 @@ export function TaskDialog({ task, assignableUsers, onClose, onSave }: Props) {
             onChange={(event) => setAssigneeId(event.target.value)}
             error={Boolean(assigneeError)} helperText={assigneeError}>
             <MenuItem value="">Niemand</MenuItem>
-            {assignableUsers.map((user) => (
-              <MenuItem key={user.id} value={String(user.id)}>{user.displayName}</MenuItem>
+            {options.map((user) => (
+              <MenuItem key={user.id} value={String(user.id)}>
+                {user.displayName}{user === keptAssignee ? ' (nicht mehr im Projekt)' : ''}
+              </MenuItem>
             ))}
           </TextField>
           <TextField label="Fällig am" type="date" value={dueDate}
